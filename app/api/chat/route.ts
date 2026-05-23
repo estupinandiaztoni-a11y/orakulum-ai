@@ -6,45 +6,41 @@ const openai = new OpenAI({
 
 export async function POST(req: Request) {
 
-  const { message } = await req.json();
+  try {
 
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
+    const body = await req.json();
 
-    stream: true,
+    const completion =
+      await openai.chat.completions.create({
+        model: "gpt-4o-mini",
 
-    messages: [
-      {
-        role: "system",
-        content:
-          "Eres ORAKULUM, una inteligencia artificial futurista, elegante y cinematográfica.",
-      },
+        messages: [
+          {
+            role: "system",
+            content:
+              "Eres ORAKULUM, una inteligencia artificial espiritual, poderosa y sabia.",
+          },
+          {
+            role: "user",
+            content: body.message,
+          },
+        ],
+      });
 
-      {
-        role: "user",
-        content: message,
-      },
-    ],
-  });
+    const reply =
+      completion.choices[0].message.content;
 
-  const encoder = new TextEncoder();
+    return Response.json({
+      reply,
+    });
 
-  const stream = new ReadableStream({
-    async start(controller) {
+  } catch (error) {
 
-      for await (const chunk of completion) {
+    console.log(error);
 
-        const text =
-          chunk.choices[0]?.delta?.content || "";
-
-        controller.enqueue(
-          encoder.encode(text)
-        );
-      }
-
-      controller.close();
-    },
-  });
-
-  return new Response(stream);
+    return Response.json({
+      reply:
+        "Error conectando con OpenAI",
+    });
+  }
 }
