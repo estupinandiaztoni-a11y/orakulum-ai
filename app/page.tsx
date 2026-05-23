@@ -1,12 +1,5 @@
 "use client";
 
-declare global {
-  interface Window {
-    SpeechRecognition: any;
-    webkitSpeechRecognition: any;
-  }
-}
-
 import {
   useEffect,
   useRef,
@@ -18,12 +11,20 @@ import {
   FaVolumeUp,
 } from "react-icons/fa";
 
-import { v4 as uuidv4 } from "uuid";
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
+}
 
 export default function Home() {
 
   const [message, setMessage] =
     useState("");
+
+  const [messages, setMessages] =
+    useState<any[]>([]);
 
   const [loading, setLoading] =
     useState(false);
@@ -34,89 +35,18 @@ export default function Home() {
   const [speaking, setSpeaking] =
     useState(false);
 
-  const [chats, setChats] =
-    useState<any[]>([]);
-
-  const [currentChatId,
-    setCurrentChatId] =
-    useState("");
-
   const bottomRef =
     useRef<HTMLDivElement>(null);
 
   useEffect(() => {
 
-    const saved =
-      localStorage.getItem(
-        "orakulum-memory"
-      );
-
-    if (saved) {
-
-      const parsed =
-        JSON.parse(saved);
-
-      setChats(parsed);
-
-      if (parsed.length > 0) {
-
-        setCurrentChatId(
-          parsed[0].id
-        );
-      }
-
-    } else {
-
-      createNewChat();
-
-    }
-
-  }, []);
-
-  useEffect(() => {
-
-    localStorage.setItem(
-      "orakulum-memory",
-      JSON.stringify(chats)
-    );
-
     bottomRef.current?.scrollIntoView({
       behavior: "smooth",
     });
 
-  }, [chats]);
+  }, [messages]);
 
-  function createNewChat() {
-
-    const newChat = {
-
-      id: uuidv4(),
-
-      title: "Nuevo Chat",
-
-      messages: [],
-    };
-
-    setChats((prev) => [
-      newChat,
-      ...prev,
-    ]);
-
-    setCurrentChatId(
-      newChat.id
-    );
-  }
-
-  const currentChat =
-    chats.find(
-      (chat) =>
-        chat.id ===
-        currentChatId
-    );
-
-  function speakText(
-    text: string
-  ) {
+  function speakText(text: string) {
 
     window.speechSynthesis.cancel();
 
@@ -161,14 +91,6 @@ export default function Home() {
 
     recognition.lang = "es-ES";
 
-    recognition.onstart = () => {
-      setListening(true);
-    };
-
-    recognition.onend = () => {
-      setListening(false);
-    };
-
     recognition.onresult = (
       event: any
     ) => {
@@ -182,15 +104,20 @@ export default function Home() {
       );
     };
 
+    recognition.onstart = () => {
+      setListening(true);
+    };
+
+    recognition.onend = () => {
+      setListening(false);
+    };
+
     recognition.start();
   }
 
   async function sendMessage() {
 
-    if (
-      !message.trim() ||
-      !currentChat
-    ) return;
+    if (!message.trim()) return;
 
     const userMessage = {
 
@@ -199,35 +126,10 @@ export default function Home() {
       content: message,
     };
 
-    const updatedChats =
-      chats.map((chat) => {
-
-        if (
-          chat.id ===
-          currentChatId
-        ) {
-
-          return {
-
-            ...chat,
-
-            title:
-              message.slice(
-                0,
-                20
-              ),
-
-            messages: [
-              ...chat.messages,
-              userMessage,
-            ],
-          };
-        }
-
-        return chat;
-      });
-
-    setChats(updatedChats);
+    setMessages((prev) => [
+      ...prev,
+      userMessage,
+    ]);
 
     const currentMessage =
       message;
@@ -256,139 +158,36 @@ export default function Home() {
     const data =
       await res.json();
 
-    let text = "";
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant",
+        content: data.reply,
+      },
+    ]);
 
-    setChats((prev) =>
-      prev.map((chat) => {
-
-        if (
-          chat.id ===
-          currentChatId
-        ) {
-
-          return {
-
-            ...chat,
-
-            messages: [
-              ...chat.messages,
-              {
-                role:
-                  "assistant",
-
-                content: "",
-              },
-            ],
-          };
-        }
-
-        return chat;
-      })
-    );
-
-    for (
-      let i = 0;
-      i < data.reply.length;
-      i++
-    ) {
-
-      text +=
-        data.reply[i];
-
-      await new Promise(
-        (resolve) =>
-          setTimeout(
-            resolve,
-            8
-          )
-      );
-
-      setChats((prev) =>
-        prev.map((chat) => {
-
-          if (
-            chat.id ===
-            currentChatId
-          ) {
-
-            const updated =
-              [
-                ...chat.messages,
-              ];
-
-            updated[
-              updated.length - 1
-            ] = {
-
-              role:
-                "assistant",
-
-              content: text,
-            };
-
-            return {
-
-              ...chat,
-
-              messages:
-                updated,
-            };
-          }
-
-          return chat;
-        })
-      );
-    }
-
-    speakText(
-      data.reply
-    );
+    speakText(data.reply);
 
     setLoading(false);
   }
 
   return (
 
-    <main className="bg-black text-white h-screen flex overflow-hidden">
+    <main className="bg-[#090909] text-white h-screen flex overflow-hidden">
 
-      <aside className="w-80 bg-zinc-950 border-r border-zinc-900 flex flex-col">
+      <aside className="w-[260px] border-r border-zinc-900 bg-black/40 backdrop-blur-xl p-5 flex flex-col">
 
-        <div className="p-5 border-b border-zinc-900">
+        <button
+          className="bg-white text-black rounded-2xl py-4 text-sm font-semibold hover:opacity-90 transition"
+        >
+          + Nuevo Chat
+        </button>
 
-          <button
-            onClick={
-              createNewChat
-            }
-            className="w-full bg-white text-black py-4 rounded-2xl text-xl font-bold"
-          >
-            + Nuevo Chat
-          </button>
+        <div className="mt-6 space-y-3">
 
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-3 space-y-3">
-
-          {chats.map(
-            (chat) => (
-
-              <button
-                key={chat.id}
-                onClick={() =>
-                  setCurrentChatId(
-                    chat.id
-                  )
-                }
-                className={`w-full text-left p-4 rounded-2xl transition ${
-                  currentChatId ===
-                  chat.id
-                    ? "bg-white text-black"
-                    : "bg-zinc-900 hover:bg-zinc-800"
-                }`}
-              >
-                {chat.title}
-              </button>
-            )
-          )}
+          <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-4 text-sm text-zinc-300 hover:bg-zinc-800 transition cursor-pointer">
+            Conversación actual
+          </div>
 
         </div>
 
@@ -396,22 +195,22 @@ export default function Home() {
 
       <section className="flex-1 flex flex-col">
 
-        <div className="text-center py-6 border-b border-zinc-900">
+        <header className="h-[90px] border-b border-zinc-900 flex items-center justify-center">
 
-          <h1 className="text-5xl font-black tracking-[10px]">
+          <h1 className="text-3xl font-semibold tracking-[10px] text-zinc-100">
             ORAKULUM
           </h1>
 
-        </div>
+        </header>
 
-        <div className="flex-1 overflow-y-auto px-6 py-6">
+        <div className="flex-1 overflow-y-auto">
 
-          <div className="max-w-5xl mx-auto space-y-6">
+          <div className="max-w-4xl mx-auto px-6 py-10 space-y-8">
 
-            {currentChat?.messages.map(
+            {messages.map(
               (
-                msg: any,
-                index: number
+                msg,
+                index
               ) => (
 
                 <div
@@ -425,11 +224,11 @@ export default function Home() {
                 >
 
                   <div
-                    className={`max-w-3xl px-8 py-6 rounded-[30px] text-2xl leading-relaxed ${
+                    className={`max-w-[75%] px-6 py-5 rounded-[28px] text-[15px] leading-8 shadow-2xl ${
                       msg.role ===
                       "user"
                         ? "bg-white text-black"
-                        : "bg-zinc-900 border border-zinc-800"
+                        : "bg-zinc-900 border border-zinc-800 text-zinc-200"
                     }`}
                   >
                     {msg.content}
@@ -441,14 +240,8 @@ export default function Home() {
 
             {loading && (
 
-              <div className="flex justify-start">
-
-                <div className="bg-zinc-900 border border-zinc-800 px-8 py-6 rounded-[30px] animate-pulse">
-
-                  ORAKULUM escribiendo...
-
-                </div>
-
+              <div className="text-zinc-500 text-sm animate-pulse">
+                ORAKULUM escribiendo...
               </div>
             )}
 
@@ -458,85 +251,85 @@ export default function Home() {
 
         </div>
 
-        <div className="border-t border-zinc-900 p-6 bg-black">
+        <footer className="border-t border-zinc-900 bg-[#090909]">
 
-          <div className="max-w-5xl mx-auto">
+          <div className="max-w-4xl mx-auto p-6">
 
-            <textarea
-              value={message}
-              onChange={(e) =>
-                setMessage(
-                  e.target.value
-                )
-              }
-              onKeyDown={(e) => {
+            <div className="bg-zinc-950 border border-zinc-800 rounded-[35px] p-4 shadow-2xl">
 
-                if (
-                  e.key === "Enter" &&
-                  !e.shiftKey
-                ) {
-
-                  e.preventDefault();
-
-                  sendMessage();
-                }
-              }}
-              placeholder="Habla con ORAKULUM..."
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-[35px] p-6 text-2xl outline-none resize-none h-40"
-            />
-
-            <div className="grid grid-cols-2 gap-4 mt-4">
-
-              <button
-                onClick={
-                  startListening
-                }
-                className={`py-5 rounded-[30px] text-2xl font-bold flex items-center justify-center gap-4 ${
-                  listening
-                    ? "bg-red-600"
-                    : "bg-zinc-800"
-                }`}
-              >
-                <FaMicrophone />
-
-                {listening
-                  ? "Escuchando..."
-                  : "Hablar"}
-              </button>
-
-              <button
-                onClick={() =>
-                  speakText(
-                    message
+              <textarea
+                value={message}
+                onChange={(e) =>
+                  setMessage(
+                    e.target.value
                   )
                 }
-                className={`py-5 rounded-[30px] text-2xl font-bold flex items-center justify-center gap-4 ${
-                  speaking
-                    ? "bg-green-600"
-                    : "bg-zinc-800"
-                }`}
-              >
-                <FaVolumeUp />
+                onKeyDown={(e) => {
 
-                {speaking
-                  ? "Hablando..."
-                  : "Leer"}
-              </button>
+                  if (
+                    e.key === "Enter" &&
+                    !e.shiftKey
+                  ) {
+
+                    e.preventDefault();
+
+                    sendMessage();
+                  }
+                }}
+                placeholder="Escribe un mensaje..."
+                className="w-full bg-transparent text-zinc-200 outline-none resize-none h-24 text-[16px] placeholder:text-zinc-500"
+              />
+
+              <div className="flex items-center justify-between mt-4">
+
+                <div className="flex gap-3">
+
+                  <button
+                    onClick={
+                      startListening
+                    }
+                    className={`w-12 h-12 rounded-2xl flex items-center justify-center transition ${
+                      listening
+                        ? "bg-red-600"
+                        : "bg-zinc-800 hover:bg-zinc-700"
+                    }`}
+                  >
+                    <FaMicrophone />
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      speakText(
+                        message
+                      )
+                    }
+                    className={`w-12 h-12 rounded-2xl flex items-center justify-center transition ${
+                      speaking
+                        ? "bg-green-600"
+                        : "bg-zinc-800 hover:bg-zinc-700"
+                    }`}
+                  >
+                    <FaVolumeUp />
+                  </button>
+
+                </div>
+
+                <button
+                  onClick={
+                    sendMessage
+                  }
+                  className="bg-white text-black px-8 py-3 rounded-2xl text-sm font-semibold hover:opacity-90 transition"
+                >
+                  Enviar
+                </button>
+
+              </div>
 
             </div>
 
-            <button
-              onClick={
-                sendMessage
-              }
-              className="mt-4 w-full bg-white text-black py-5 rounded-[30px] text-3xl font-black"
-            >
-              Enviar
-            </button>
-
           </div>
 
-        </div>
+        </footer>
 
       </section>
 
