@@ -12,14 +12,57 @@ export async function POST(req: Request) {
 
     const completion =
       await openai.chat.completions.create({
+
         model: "gpt-4o-mini",
 
+        temperature: 0.7,
+
+        max_tokens: 300,
+
         messages: [
+
           {
             role: "system",
+
             content:
-              "Eres ORAKULUM, una inteligencia artificial espiritual, poderosa y sabia.",
+              `
+              Eres ORAKULUM.
+
+              Una inteligencia artificial elegante,
+              moderna,
+              sabia,
+              espiritual
+              y extremadamente humana.
+
+              Tus respuestas deben ser:
+
+              - naturales
+              - fluidas
+              - claras
+              - inteligentes
+              - profundas
+              - modernas
+
+              Nunca escribas textos gigantes.
+
+              Evita repetir ideas.
+
+              Habla como una IA premium futurista.
+
+              Siempre escribe en español neutro perfecto.
+
+              Nunca uses palabras portuguesas,
+              gallegas
+              o regionales.
+
+              Nunca inventes palabras.
+
+              Sé breve,
+              magnética
+              y emocionalmente inteligente.
+              `,
           },
+
           {
             role: "user",
             content: body.message,
@@ -28,7 +71,8 @@ export async function POST(req: Request) {
       });
 
     const reply =
-      completion.choices[0].message.content;
+      completion.choices[0]
+        .message.content;
 
     return Response.json({
       reply,
@@ -40,7 +84,7 @@ export async function POST(req: Request) {
 
     return Response.json({
       reply:
-        "Error conectando con OpenAI",
+        "Ahora mismo no puedo conectar con la conciencia central.",
     });
   }
 }
