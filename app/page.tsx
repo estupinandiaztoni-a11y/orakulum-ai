@@ -1,4 +1,9 @@
-"use client";
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
+}"use client";
 
 import {
   useEffect,
