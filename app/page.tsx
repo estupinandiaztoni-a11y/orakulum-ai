@@ -1,13 +1,17 @@
-"use client"declare global {
-  declare global {
+"use client"
+
+declare global {
   interface Window {
     SpeechRecognition: any;
     webkitSpeechRecognition: any;
   }
-}interface Window {
-    SpeechRecognition: any;
-    webkitSpeechRecognition: any;
-  }
+}
+
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 }"use client";
 
 import {
