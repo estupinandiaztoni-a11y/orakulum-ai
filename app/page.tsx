@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 declare global {
   interface Window {
@@ -6,13 +6,6 @@ declare global {
     webkitSpeechRecognition: any;
   }
 }
-
-import {
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-}"use client";
 
 import {
   useEffect,
