@@ -1,5 +1,10 @@
-declare global {
+"use client"declare global {
+  declare global {
   interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
+}interface Window {
     SpeechRecognition: any;
     webkitSpeechRecognition: any;
   }
