@@ -83,15 +83,47 @@ export default function Home() {
     setLoading(false);
   };
 
-  const speakText = (text: string) => {
-    if (!window.speechSynthesis) return;
+ const speakText = async (
+  text: string
+) => {
 
-    window.speechSynthesis.cancel();
+  try {
 
-    const utterance = new SpeechSynthesisUtterance(
-      text
-    );
+    const response =
+      await fetch(
+        "/api/voice",
+        {
+          method: "POST",
 
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+
+          body: JSON.stringify({
+            text,
+          }),
+        }
+      );
+
+    const blob =
+      await response.blob();
+
+    const url =
+      URL.createObjectURL(
+        blob
+      );
+
+    const audio =
+      new Audio(url);
+
+    audio.play();
+
+  } catch (error) {
+
+    console.log(error);
+  }
+};
     const voices =
       window.speechSynthesis.getVoices();
 
