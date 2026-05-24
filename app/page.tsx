@@ -123,31 +123,26 @@ export default function Home() {
 
     console.log(error);
   }
-};
-    const voices =
-      window.speechSynthesis.getVoices();
+const voices = speechSynthesis.getVoices();
 
-    const maleVoice =
-      voices.find((voice) =>
-        voice.name.toLowerCase().includes("david")
-      ) ||
-      voices.find((voice) =>
-        voice.name.toLowerCase().includes("mark")
-      ) ||
-      voices.find((voice) =>
-        voice.lang.includes("es")
-      );
+const maleVoice =
+  voices.find((voice) =>
+    voice.name.includes("Google español")
+  ) ||
+  voices.find((voice) =>
+    voice.lang.includes("es")
+  );
 
-    if (maleVoice) {
-      utterance.voice = maleVoice;
-    }
+if (maleVoice) {
+  utterance.voice = maleVoice;
+}
 
-    utterance.lang = "es-ES";
-    utterance.pitch = 0.9;
-    utterance.rate = 0.95;
-    utterance.volume = 1;
+utterance.lang = "es-ES";
+utterance.pitch = 0.85;
+utterance.rate = 0.9;
+utterance.volume = 1;
 
-    window.speechSynthesis.speak(utterance);
+window.speechSynthesis.speak(utterance);
   };
 
   const startListening = () => {
