@@ -1,88 +1,132 @@
 "use client";
 
-import {
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useRef, useState } from "react";
 
-import {
-  FaMicrophone,
-  FaVolumeUp,
-} from "react-icons/fa";
-
-declare global {
-  interface Window {
-    SpeechRecognition: any;
-    webkitSpeechRecognition: any;
-  }
-}
+type Message = {
+  role: "user" | "assistant";
+  content: string;
+};
 
 export default function Home() {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [isListening, setIsListening] = useState(false);
 
-  const [message, setMessage] =
-    useState("");
-
-  const [messages, setMessages] =
-    useState<any[]>([]);
-
-  const [loading, setLoading] =
-    useState(false);
-
-  const [listening, setListening] =
-    useState(false);
-
-  const [speaking, setSpeaking] =
-    useState(false);
-
-  const bottomRef =
-    useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-
-    bottomRef.current?.scrollIntoView({
-      behavior: "smooth",
-    });
-
+    scrollToBottom();
   }, [messages]);
 
-  function speakText(text: string) {
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({
+      behavior: "smooth",
+    });
+  };
+
+  const sendMessage = async () => {
+    if (!input.trim()) return;
+
+    const userMessage: Message = {
+      role: "user",
+      content: input,
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+
+    const currentInput = input;
+
+    setInput("");
+    setLoading(true);
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: currentInput,
+        }),
+      });
+
+      const data = await response.json();
+
+      const assistantMessage: Message = {
+        role: "assistant",
+        content:
+          data.reply ||
+          "No pude responder en este momento.",
+      };
+
+      setMessages((prev) => [
+        ...prev,
+        assistantMessage,
+      ]);
+
+      speakText(assistantMessage.content);
+    } catch (error) {
+      console.error(error);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content:
+            "Ocurrió un error al conectar.",
+        },
+      ]);
+    }
+
+    setLoading(false);
+  };
+
+  const speakText = (text: string) => {
+    if (!window.speechSynthesis) return;
 
     window.speechSynthesis.cancel();
 
-    const utterance =
-      new SpeechSynthesisUtterance(
-        text
+    const utterance = new SpeechSynthesisUtterance(
+      text
+    );
+
+    const voices =
+      window.speechSynthesis.getVoices();
+
+    const maleVoice =
+      voices.find((voice) =>
+        voice.name.toLowerCase().includes("david")
+      ) ||
+      voices.find((voice) =>
+        voice.name.toLowerCase().includes("mark")
+      ) ||
+      voices.find((voice) =>
+        voice.lang.includes("es")
       );
+
+    if (maleVoice) {
+      utterance.voice = maleVoice;
+    }
 
     utterance.lang = "es-ES";
+    utterance.pitch = 0.9;
+    utterance.rate = 0.95;
+    utterance.volume = 1;
 
-    utterance.onstart = () => {
-      setSpeaking(true);
-    };
+    window.speechSynthesis.speak(utterance);
+  };
 
-    utterance.onend = () => {
-      setSpeaking(false);
-    };
-
-    speechSynthesis.speak(
-      utterance
-    );
-  }
-
-  function startListening() {
-
+  const startListening = () => {
     const SpeechRecognition =
-      window.SpeechRecognition ||
-      (window as any)
-        .webkitSpeechRecognition;
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-
       alert(
-        "Tu navegador no soporta voz"
+        "Tu navegador no soporta reconocimiento de voz."
       );
-
       return;
     }
 
@@ -91,248 +135,134 @@ export default function Home() {
 
     recognition.lang = "es-ES";
 
-    recognition.onresult = (
-      event: any
-    ) => {
+    recognition.interimResults = false;
 
+    recognition.maxAlternatives = 1;
+
+    recognition.start();
+
+    recognitionRef.current = recognition;
+
+    setIsListening(true);
+
+    recognition.onresult = (event: any) => {
       const transcript =
-        event.results[0][0]
-          .transcript;
+        event.results[0][0].transcript;
 
-      setMessage(
-        transcript
-      );
+      setInput(transcript);
     };
 
-    recognition.onstart = () => {
-      setListening(true);
+    recognition.onerror = () => {
+      setIsListening(false);
     };
 
     recognition.onend = () => {
-      setListening(false);
+      setIsListening(false);
     };
-
-    recognition.start();
-  }
-
-  async function sendMessage() {
-
-    if (!message.trim()) return;
-
-    const userMessage = {
-
-      role: "user",
-
-      content: message,
-    };
-
-    setMessages((prev) => [
-      ...prev,
-      userMessage,
-    ]);
-
-    const currentMessage =
-      message;
-
-    setMessage("");
-
-    setLoading(true);
-
-    const res = await fetch(
-      "/api/chat",
-      {
-        method: "POST",
-
-        headers: {
-          "Content-Type":
-            "application/json",
-        },
-
-        body: JSON.stringify({
-          message:
-            currentMessage,
-        }),
-      }
-    );
-
-    const data =
-      await res.json();
-
-    setMessages((prev) => [
-      ...prev,
-      {
-        role: "assistant",
-        content: data.reply,
-      },
-    ]);
-
-    speakText(data.reply);
-
-    setLoading(false);
-  }
+  };
 
   return (
-
-    <main className="bg-[#090909] text-white h-screen flex overflow-hidden">
-
-      <aside className="w-[260px] border-r border-zinc-900 bg-black/40 backdrop-blur-xl p-5 flex flex-col">
-
+    <main className="min-h-screen bg-black text-white flex">
+      <aside className="w-[280px] border-r border-zinc-800 bg-zinc-950 p-5 flex flex-col">
         <button
-          className="bg-white text-black rounded-2xl py-4 text-sm font-semibold hover:opacity-90 transition"
+          className="bg-white text-black font-bold rounded-2xl py-4 text-lg hover:scale-[1.02] transition"
+          onClick={() => setMessages([])}
         >
           + Nuevo Chat
         </button>
 
-        <div className="mt-6 space-y-3">
-
-          <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-4 text-sm text-zinc-300 hover:bg-zinc-800 transition cursor-pointer">
-            Conversación actual
-          </div>
-
+        <div className="mt-6 flex-1 overflow-auto">
+          {messages.length > 0 && (
+            <div className="bg-zinc-900 rounded-xl p-4 text-sm text-zinc-300">
+              Conversación actual
+            </div>
+          )}
         </div>
-
       </aside>
 
       <section className="flex-1 flex flex-col">
-
-        <header className="h-[90px] border-b border-zinc-900 flex items-center justify-center">
-
-          <h1 className="text-3xl font-semibold tracking-[10px] text-zinc-100">
+        <header className="border-b border-zinc-800 p-8 flex justify-center">
+          <h1 className="text-6xl font-black tracking-[12px]">
             ORAKULUM
           </h1>
-
         </header>
 
-        <div className="flex-1 overflow-y-auto">
-
-          <div className="max-w-4xl mx-auto px-6 py-10 space-y-8">
-
-            {messages.map(
-              (
-                msg,
-                index
-              ) => (
-
-                <div
-                  key={index}
-                  className={`flex ${
-                    msg.role ===
-                    "user"
-                      ? "justify-end"
-                      : "justify-start"
-                  }`}
-                >
-
-                  <div
-                    className={`max-w-[75%] px-6 py-5 rounded-[28px] text-[15px] leading-8 shadow-2xl ${
-                      msg.role ===
-                      "user"
-                        ? "bg-white text-black"
-                        : "bg-zinc-900 border border-zinc-800 text-zinc-200"
-                    }`}
-                  >
-                    {msg.content}
-                  </div>
-
-                </div>
-              )
-            )}
+        <div className="flex-1 overflow-y-auto px-10 py-10">
+          <div className="max-w-4xl mx-auto space-y-8">
+            {messages.map((message, index) => (
+              <div
+                key={index}
+                className={`rounded-3xl p-8 text-[24px] leading-[42px] shadow-2xl ${
+                  message.role === "user"
+                    ? "bg-white text-black ml-auto max-w-[80%]"
+                    : "bg-zinc-900 text-white max-w-[85%]"
+                }`}
+              >
+                {message.content}
+              </div>
+            ))}
 
             {loading && (
-
-              <div className="text-zinc-500 text-sm animate-pulse">
-                ORAKULUM escribiendo...
+              <div className="bg-zinc-900 rounded-3xl p-8 text-2xl animate-pulse">
+                ORAKULUM está pensando...
               </div>
             )}
 
-            <div ref={bottomRef} />
-
+            <div ref={messagesEndRef} />
           </div>
-
         </div>
 
-        <footer className="border-t border-zinc-900 bg-[#090909]">
-
-          <div className="max-w-4xl mx-auto p-6">
-
-            <div className="bg-zinc-950 border border-zinc-800 rounded-[35px] p-4 shadow-2xl">
-
+        <footer className="border-t border-zinc-800 p-8">
+          <div className="max-w-4xl mx-auto">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                sendMessage();
+              }}
+              className="space-y-5"
+            >
               <textarea
-                value={message}
+                value={input}
                 onChange={(e) =>
-                  setMessage(
-                    e.target.value
-                  )
+                  setInput(e.target.value)
                 }
+                placeholder="Escribe un mensaje..."
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-3xl p-8 text-2xl outline-none resize-none min-h-[180px]"
                 onKeyDown={(e) => {
-
                   if (
                     e.key === "Enter" &&
                     !e.shiftKey
                   ) {
-
                     e.preventDefault();
-
                     sendMessage();
                   }
                 }}
-                placeholder="Escribe un mensaje..."
-                className="w-full bg-transparent text-zinc-200 outline-none resize-none h-24 text-[16px] placeholder:text-zinc-500"
               />
 
-              <div className="flex items-center justify-between mt-4">
-
-                <div className="flex gap-3">
-
-                  <button
-                    onClick={
-                      startListening
-                    }
-                    className={`w-12 h-12 rounded-2xl flex items-center justify-center transition ${
-                      listening
-                        ? "bg-red-600"
-                        : "bg-zinc-800 hover:bg-zinc-700"
-                    }`}
-                  >
-                    <FaMicrophone />
-                  </button>
-
-                  <button
-                    onClick={() =>
-                      speakText(
-                        message
-                      )
-                    }
-                    className={`w-12 h-12 rounded-2xl flex items-center justify-center transition ${
-                      speaking
-                        ? "bg-green-600"
-                        : "bg-zinc-800 hover:bg-zinc-700"
-                    }`}
-                  >
-                    <FaVolumeUp />
-                  </button>
-
-                </div>
+              <div className="flex gap-5">
+                <button
+                  type="button"
+                  onClick={startListening}
+                  className={`flex-1 rounded-2xl py-5 text-2xl font-bold transition ${
+                    isListening
+                      ? "bg-red-600"
+                      : "bg-zinc-800 hover:bg-zinc-700"
+                  }`}
+                >
+                  🎤 Hablar
+                </button>
 
                 <button
-                  onClick={
-                    sendMessage
-                  }
-                  className="bg-white text-black px-8 py-3 rounded-2xl text-sm font-semibold hover:opacity-90 transition"
+                  type="submit"
+                  className="flex-1 bg-white text-black rounded-2xl py-5 text-2xl font-black hover:scale-[1.01] transition"
                 >
                   Enviar
                 </button>
-
               </div>
-
-            </div>
-
+            </form>
           </div>
-
         </footer>
-
       </section>
-
     </main>
   );
 }
